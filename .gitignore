@@ -212,3 +212,7 @@ __marimo__/
 
 # Reference solutions - kept on disk for the instructor, never committed
 solutions/
+
+# artefactos locales del taller
+__pycache__/
+*.pyc
