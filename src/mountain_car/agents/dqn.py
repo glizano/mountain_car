@@ -40,10 +40,16 @@ class QNetwork(nn.Module):
 
     def __init__(self, state_dim: int, action_dim: int, hidden: int = 128) -> None:
         super().__init__()
-        raise NotImplementedError("EXERCISE 2a: build the Q-network")
+        self.net = nn.Sequential(
+            nn.Linear(state_dim, hidden),
+            nn.ReLU(),
+            nn.Linear(hidden, hidden),
+            nn.ReLU(),
+            nn.Linear(hidden, action_dim),
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError("EXERCISE 2a: implement forward()")
+        return self.net(x)
 
 
 # ── Replay buffer ────────────────────────────────────────────────────
@@ -96,6 +102,8 @@ class DQNAgent:
         buffer_capacity: int = 100_000,
         target_update_freq: int = 10,
         hidden: int = 128,
+        explore_hold_min: int = 8,
+        explore_hold_max: int = 25,
     ) -> None:
         self.env_id = env_id
         self.lr = lr
@@ -107,6 +115,14 @@ class DQNAgent:
         self.buffer_capacity = buffer_capacity
         self.target_update_freq = target_update_freq
         self.hidden = hidden
+        # EXERCISE 3: exploracion temporalmente correlacionada. En MountainCar el
+        # carro necesita empujes sostenidos en la misma direccion para acumular
+        # impulso; con acciones independientes por paso la probabilidad de
+        # encadenarlos es despreciable y el agente nunca ve una sola recompensa.
+        self.explore_hold_min = explore_hold_min
+        self.explore_hold_max = explore_hold_max
+        self._explore_action: int | None = None
+        self._explore_left = 0
         self.training_episodes = 0
 
         env = gym.make(env_id)
@@ -125,6 +141,11 @@ class DQNAgent:
         self.buffer = ReplayBuffer(buffer_capacity)
 
     # ── policy ────────────────────────────────────────────────────────
+
+    def reset_exploration(self) -> None:
+        """Olvida la racha en curso. Se llama al comienzo de cada episodio."""
+        self._explore_action = None
+        self._explore_left = 0
 
     def select_action(self, state: np.ndarray, *, deterministic: bool = False) -> int:
         """Textbook epsilon-greedy: explore with probability epsilon.
@@ -146,8 +167,22 @@ class DQNAgent:
         from gentle to nearly-the-answer -- take only as many as you need. Try
         to diagnose it from your own measurements first.
         """
-        if not deterministic and random.random() < self.epsilon:
-            return random.randrange(self.action_dim)
+        if not deterministic:
+            # Una racha ya empezada se respeta hasta el final. Si se dejara que
+            # un paso codicioso la cortara, con epsilon intermedio las rachas
+            # se partirian a los pocos pasos y volveriamos al caso uniforme.
+            if self._explore_left > 0 and self._explore_action is not None:
+                self._explore_left -= 1
+                return int(self._explore_action)
+
+            # Con probabilidad epsilon se abre una racha nueva: una accion
+            # sostenida durante varios pasos. Son los empujes sostenidos lo
+            # unico que puede sacar el carro del valle.
+            if random.random() < self.epsilon:
+                self._explore_action = random.randrange(self.action_dim)
+                self._explore_left = random.randint(self.explore_hold_min, self.explore_hold_max) - 1
+                return int(self._explore_action)
+
         with torch.no_grad():
             t = torch.as_tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
             return int(self.q_net(t).argmax(dim=1).item())
@@ -197,7 +232,19 @@ class DQNAgent:
         #      Tip: zero_grad() -> backward() -> step(), in that order.
         #
         # Return the scalar loss value (.item()).
-        raise NotImplementedError("EXERCISE 2b: implement the DQN learning step")
+        current_q = self.q_net(states_t).gather(1, actions_t)
+
+        with torch.no_grad():
+            next_q = self.target_net(next_states_t).max(dim=1, keepdim=True).values
+
+        # Truncation is not terminal, so only `terminated` kills the bootstrap.
+        target_q = rewards_t + self.gamma * next_q * (1.0 - terminateds_t)
+
+        loss = self.loss_fn(current_q, target_q)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        return float(loss.item())
 
     # ── training loop ─────────────────────────────────────────────────
 
@@ -207,6 +254,7 @@ class DQNAgent:
 
         for episode in range(1, total_episodes + 1):
             obs, _ = env.reset()
+            self.reset_exploration()
             total_reward = 0.0
             done = False
 
@@ -255,6 +303,8 @@ class DQNAgent:
         "buffer_capacity",
         "target_update_freq",
         "hidden",
+        "explore_hold_min",
+        "explore_hold_max",
     )
 
     def save(self, path: Path) -> None:
