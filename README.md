@@ -66,6 +66,10 @@ Tres piezas:
 
 Hiperparámetros: 20 bins por dimensión, tasa de aprendizaje 0,1, gamma 0,99, epsilon de 1,0 a 0,01 con decaimiento 0,9995.
 
+### Esquema del ciclo de entrenamiento (Q-Learning)
+
+![Esquema de Q-Learning](resultados/esquema_qlearning.png)
+
 ---
 
 ## DQN
@@ -79,6 +83,10 @@ El paso de aprendizaje toma un lote de 64 transiciones del buffer de repetición
 - El objetivo es `r + gamma * next_q * (1 - terminated)`, con la misma distinción entre terminación y truncación que en el caso tabular.
 
 Hiperparámetros: lr 0,001 con Adam, gamma 0,99, lote 64, buffer de 100.000 transiciones, sincronización de la red objetivo cada 10 episodios.
+
+### Esquema del ciclo de entrenamiento (DQN)
+
+![Esquema de DQN](resultados/esquema_dqn.png)
 
 ---
 
