@@ -69,6 +69,7 @@ Hiperparámetros: 20 bins por dimensión, tasa de aprendizaje 0,1, gamma 0,99, e
 ### Esquema del ciclo de entrenamiento (Q-Learning)
 
 ![Esquema de Q-Learning](resultados/esquema_qlearning.png)
+*Esquema conceptual de autoría propia elaborado en [Excalidraw](https://excalidraw.com/).*
 
 ---
 
@@ -87,6 +88,7 @@ Hiperparámetros: lr 0,001 con Adam, gamma 0,99, lote 64, buffer de 100.000 tran
 ### Esquema del ciclo de entrenamiento (DQN)
 
 ![Esquema de DQN](resultados/esquema_dqn.png)
+*Esquema conceptual de autoría propia elaborado en [Excalidraw](https://excalidraw.com/).*
 
 ---
 
